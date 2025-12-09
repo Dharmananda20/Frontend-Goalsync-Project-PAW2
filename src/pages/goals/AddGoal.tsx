@@ -1,86 +1,57 @@
-import React, { useEffect, useState } from "react";
-import { Container, Row, Col, Card, Button, Spinner, Alert } from "react-bootstrap";
-import ApiClient from "../../utils/ApiClient";
+import React, {  useState } from "react";
+import { Container, Button, Alert,Form } from "react-bootstrap";
+import ApiClient from "../../utlis/ApiClient";
 import { useNavigate } from "react-router-dom";
 import AppNavbar from "../../components/layout/AppNavbar";
 
-type Goal = {
-  _id: string;
-  title: string;
-  description?: string;
-  progress?: number;
-};
-
-export default function GoalList() {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AddGoal() {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setErr(null);
-      try {
-        const res = await ApiClient.get("/goals");
-        // banyak backend pakai res.data.data atau res.data
-        const data = res.data?.data ?? res.data ?? [];
-        setGoals(Array.isArray(data) ? data : []);
-      } catch (error: any) {
-        console.error(error);
-        setErr(error?.response?.data?.message || error?.message || "Gagal mengambil goals");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    if (!title.trim()) {
+      setErr("Title wajib diisi");
+      return;
+    }
+    setLoading(true);
+    try {
+      await ApiClient.post("/goals", { title, description });
+      navigate("/app/goals");
+    } catch (error: any) {
+      console.error(error);
+      setErr(error?.response?.data?.message || "Gagal menyimpan goal");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
       <AppNavbar />
-      <Container className="mt-3">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h3>Goals</h3>
-          <div>
-            <Button variant="outline-primary" className="me-2" onClick={() => navigate("/app/goals/add")}>
-              Tambah Goal
-            </Button>
-            <Button variant="secondary" onClick={() => { setLoading(true); setGoals([]); /* simple refresh */ }}>
-              Refresh
-            </Button>
-          </div>
-        </div>
-
-        {loading && (
-          <div className="text-center my-4">
-            <Spinner animation="border" role="status" />
-          </div>
-        )}
-
+      <Container className="mt-3" style={{ maxWidth: 700 }}>
+        <h3>Tambah Goal</h3>
         {err && <Alert variant="danger">{err}</Alert>}
 
-        {!loading && goals.length === 0 && <p>Tidak ada goals. Coba tambah satu.</p>}
+        <Form onSubmit={submit}>
+          <Form.Group className="mb-2">
+            <Form.Label>Judul</Form.Label>
+            <Form.Control value={title} onChange={(e) => setTitle(e.target.value)} required />
+          </Form.Group>
 
-        <Row>
-          {goals.map((g) => (
-            <Col md={4} key={g._id} className="mb-3">
-              <Card>
-                <Card.Body>
-                  <Card.Title>{g.title}</Card.Title>
-                  <Card.Text style={{ minHeight: 48 }}>{g.description}</Card.Text>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>Progress: {g.progress ?? 0}%</div>
-                    <div>
-                      <Button variant="primary" size="sm" onClick={() => navigate(`/app/goals/${g._id}`)}>
-                        Buka
-                      </Button>
-                    </div>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+          <Form.Group className="mb-2">
+            <Form.Label>Deskripsi</Form.Label>
+            <Form.Control as="textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </Form.Group>
+
+          <Button type="submit" disabled={loading}>
+            {loading ? "Menyimpan..." : "Simpan"}
+          </Button>
+        </Form>
       </Container>
     </>
   );
